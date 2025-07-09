@@ -1,0 +1,27 @@
+@page "/internal/create-entry"
+<h3>Create Entry</h3>
+
+<EditForm Model="@order" OnValidSubmit="HandleValidSubmit">
+    <InputText @bind-Value="order.Name" placeholder="Order Name" />
+    <br />
+    <InputTextArea @bind-Value="order.Description" placeholder="Description" />
+    <br />
+    <button type="submit">Submit</button>
+</EditForm>
+
+@code 
+{
+    private Order order = new();
+
+    private void HandleValidSubmit()
+    {
+        // Save to DB (hook up later)
+        Console.WriteLine($"Order created: {order.Name}");
+    }
+
+    class Order
+    {
+        public string Name { get; set; }
+        public string Description { get; set; }
+    }
+}
