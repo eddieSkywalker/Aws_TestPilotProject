@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IConfiguration Configuration
 @attribute [Authorize]
 
 <div class="container mt-4">
@@ -23,7 +24,7 @@
                     <p class="card-text">
                         Manage your board game inventory, track games, and organize your collection.
                     </p>
-                    <a href="https://localhost:5001" class="btn btn-primary">
+                    <a href="@ToolUrl" class="btn btn-primary">
                         <i class="fas fa-external-link-alt me-1"></i>
                         Open Tool
                     </a>
@@ -69,12 +70,15 @@
     </div>
 </div>
 
-@code {
+@code 
+{
     private string currentUser = "";
-    
+    private string ToolUrl = "";
+
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         currentUser = authState.User.Identity?.Name ?? "Unknown User";
+        ToolUrl = Configuration["ToolUrls:BoardGameTracker"];
     }
 }

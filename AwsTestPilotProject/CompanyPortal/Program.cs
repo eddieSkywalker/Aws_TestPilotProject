@@ -1,10 +1,10 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,16 +20,23 @@ builder.Services.AddAuthentication(options =>
 })
 .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
 {
-    options.Cookie.Name = "CompanyAuth";         // SAME as BoardGameTracker
-    options.Cookie.SameSite = SameSiteMode.Lax;  // Add this
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // Add this
+    var cookieName = builder.Configuration["Cookie:Name"];
+    var cookieDomain = builder.Configuration["Cookie:Domain"];
+    options.Cookie.Name = cookieName;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     options.LoginPath = "/authentication/challenge";
     options.LogoutPath = "/authentication/signout";
 
-    // Set domain only in production
+    // Set domain only if specified in appsettings (needed for production)
     if (!builder.Environment.IsDevelopment())
     {
-        options.Cookie.Domain = ".yourcompany.com";
+        Console.WriteLine($"Setting cookie domain to: {cookieDomain}");
+        options.Cookie.Domain = cookieDomain;
+    }
+    else
+    {
+        Console.WriteLine("Running in development mode, cookie domain not set.");
     }
 })
 .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
