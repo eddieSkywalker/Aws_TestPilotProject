@@ -1,18 +1,48 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure logging
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.SetMinimumLevel(LogLevel.Information);
+
+var logger = builder.Services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
+
+// Debug: Log configuration loading
+logger.LogInformation("Environment: {Environment}", builder.Environment.EnvironmentName);
+logger.LogInformation("Content Root: {ContentRoot}", builder.Environment.ContentRootPath);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
+builder.Services.AddHttpClient();
+builder.Services.AddHttpContextAccessor();
 
-// ----- Add Authentication for Cognito (IDENTICAL to BoardGameTracker)
+// Add session support for token storage
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromHours(1);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
+
+// Add Token Service for SSO capability (but use built-in auth state provider)
+builder.Services.AddSingleton<CompanyPortal.Services.ITokenService, CompanyPortal.Services.TokenService>();
+builder.Services.AddScoped<CompanyPortal.Services.ISsoService, CompanyPortal.Services.SsoService>();
+
+// ----- Add Authentication for Cognito (Hybrid Approach)
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
@@ -20,38 +50,42 @@ builder.Services.AddAuthentication(options =>
 })
 .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
 {
-    var cookieName = builder.Configuration["Cookie:Name"];
-    var cookieDomain = builder.Configuration["Cookie:Domain"];
-    options.Cookie.Name = cookieName;
-    options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-    options.LoginPath = "/authentication/challenge";
-    options.LogoutPath = "/authentication/signout";
-
-    // Set domain only if specified in appsettings (needed for production)
-    if (!builder.Environment.IsDevelopment())
-    {
-        Console.WriteLine($"Setting cookie domain to: {cookieDomain}");
-        options.Cookie.Domain = cookieDomain;
-    }
-    else
-    {
-        Console.WriteLine("Running in development mode, cookie domain not set.");
-    }
+    options.LoginPath = "/authentication/login";
+    options.LogoutPath = "/authentication/logout";
 })
 .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
 {
     options.Authority = builder.Configuration["Cognito:Authority"];
+    options.ClientId = builder.Configuration["Cognito:ClientId"];
+    options.ClientSecret = builder.Configuration["Cognito:ClientSecret"];
     options.ResponseType = OpenIdConnectResponseType.Code;
+    options.CallbackPath = "/signin-oidc";
+    options.SignedOutCallbackPath = "/signout-callback-oidc";
+    options.SaveTokens = true;
+    
+    // Add required scopes
     options.Scope.Clear();
     options.Scope.Add("openid");
     options.Scope.Add("email");
     options.Scope.Add("profile");
-    options.ClientId = builder.Configuration["Cognito:ClientId"];
-    options.ClientSecret = builder.Configuration["Cognito:ClientSecret"];
-    options.SaveTokens = true;
-    options.GetClaimsFromUserInfoEndpoint = true;
-    options.ClaimActions.MapJsonKey("groups", "cognito:groups");
+    
+    options.Events = new OpenIdConnectEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            // Extract tokens for SSO capability
+            var tokenService = context.HttpContext.RequestServices.GetRequiredService<CompanyPortal.Services.ITokenService>();
+            var sessionId = context.HttpContext.Session.Id;
+            
+            var accessToken = context.TokenEndpointResponse?.AccessToken;
+            var idToken = context.TokenEndpointResponse?.IdToken;
+            
+            if (!string.IsNullOrEmpty(accessToken))
+            {
+                await tokenService.StoreTokenAsync(sessionId, accessToken, idToken);
+            }
+        }
+    };
 });
 
 builder.Services.AddAuthorization(options =>
@@ -83,6 +117,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseSession(); // Add session support
 app.UseAuthentication();
 app.UseAuthorization();
 

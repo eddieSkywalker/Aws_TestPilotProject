@@ -3,6 +3,9 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IConfiguration Configuration
+@inject CompanyPortal.Services.ISsoService SsoService
+@inject NavigationManager NavigationManager
+@inject ILogger<Index> Logger
 @attribute [Authorize]
 
 <div class="container mt-4">
@@ -24,7 +27,7 @@
                     <p class="card-text">
                         Manage your board game inventory, track games, and organize your collection.
                     </p>
-                    <a href="@ToolUrl" class="btn btn-primary">
+                    <a href="javascript:void(0)" class="btn btn-primary" @onclick="NavigateToToolWithSSO">
                         <i class="fas fa-external-link-alt me-1"></i>
                         Open Tool
                     </a>
@@ -79,6 +82,46 @@
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         currentUser = authState.User.Identity?.Name ?? "Unknown User";
-        ToolUrl = Configuration["ToolUrls:BoardGameTracker"];
+        ToolUrl = Configuration["ToolUrls:BoardGameTracker"] ?? "https://localhost:5001";
+    }
+
+    private async Task NavigateToToolWithSSO()
+    {
+        try
+        {
+            // Get JWT token from server-side token service
+            var token = await SsoService.GetTokenForSsoAsync();
+            
+            Logger.LogInformation("=== SSO Navigation Debug ===");
+            Logger.LogInformation("ToolUrl: {ToolUrl}", ToolUrl);
+            Logger.LogInformation("Token available: {TokenAvailable}", !string.IsNullOrEmpty(token));
+            
+            if (!string.IsNullOrEmpty(token))
+            {
+                // Debug: Show token details for troubleshooting
+                Logger.LogInformation("Token length: {TokenLength}", token.Length);
+                Logger.LogInformation("Token starts with: {TokenStart}...", token.Substring(0, Math.Min(50, token.Length)));
+                
+                // Navigate to the other app with SSO token in same tab
+                var ssoUrl = $"{ToolUrl}/jwt-auth/sso-redirect?targetUrl={Uri.EscapeDataString("/")}&token={Uri.EscapeDataString(token)}";
+                Logger.LogInformation("SSO URL: {SsoUrl}", ssoUrl);
+                Logger.LogInformation("Navigating with SSO token...");
+                NavigationManager.NavigateTo(ssoUrl, forceLoad: true);
+            }
+            else
+            {
+                // No token available, just open the app (user will need to login)
+                Logger.LogInformation("No token available, navigating to: {ToolUrl}", ToolUrl);
+                NavigationManager.NavigateTo(ToolUrl, forceLoad: true);
+            }
+            Logger.LogInformation("=== End Debug ===");
+        }
+        catch (Exception ex)
+        {
+            // Log error and fallback to direct navigation
+            Logger.LogError(ex, "SSO navigation error: {ErrorMessage}", ex.Message);
+            Logger.LogInformation("Fallback navigation to: {ToolUrl}", ToolUrl);
+            NavigationManager.NavigateTo(ToolUrl, forceLoad: true);
+        }
     }
 }
