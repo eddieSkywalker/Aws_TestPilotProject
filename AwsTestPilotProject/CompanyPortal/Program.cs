@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -61,6 +62,7 @@ builder.Services.AddAuthentication(options =>
     options.ResponseType = OpenIdConnectResponseType.Code;
     options.CallbackPath = "/signin-oidc";
     options.SignedOutCallbackPath = "/signout-callback-oidc";
+    options.RequireHttpsMetadata = true; // Ensure HTTPS is used
     options.SaveTokens = true;
     
     // Add required scopes
@@ -96,7 +98,7 @@ builder.Services.AddAuthorization(options =>
             context.User.HasClaim("cognito:groups", "Warehouse")
         );
     });
-    
+
     options.AddPolicy("CustomerUser", policy =>
     {
         policy.RequireAssertion(context =>
@@ -104,6 +106,12 @@ builder.Services.AddAuthorization(options =>
         );
     });
 });
+
+builder.WebHost.ConfigureKestrel((context, options) =>
+{
+    options.Configure(context.Configuration.GetSection("Kestrel"));
+});
+
 
 var app = builder.Build();
 
@@ -113,6 +121,11 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor
+});
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
