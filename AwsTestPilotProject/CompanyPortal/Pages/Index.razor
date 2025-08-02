@@ -70,6 +70,43 @@
                 </div>
             </div>
         </div>
+
+    <h5>User Claims:</h5>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Claim Type</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var claim in authState.User.Claims.OrderBy(c => c.Type))
+                    {
+                        <tr>
+                            <td>
+                                <code>@GetFriendlyClaimName(claim.Type)</code>
+                            </td>
+                            <td>
+                                @if (claim.Type.Contains("group") || claim.Type.Contains("role"))
+                                {
+                                    <span class="badge bg-primary">@claim.Value</span>
+                                }
+                                else if (claim.Type.Contains("email"))
+                                {
+                                    <span class="text-info">@claim.Value</span>
+                                }
+                                else
+                                {
+                                    @claim.Value
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
     </div>
 </div>
 
@@ -77,12 +114,16 @@
 {
     private string currentUser = "";
     private string ToolUrl = "";
+    private AuthenticationState? authState;
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        currentUser = authState.User.Identity?.Name ?? "Unknown User";
-        ToolUrl = Configuration["ToolUrls:BoardGameTracker"] ?? "https://localhost:5001";
+        authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        currentUser = authState.User.Identity?.Name
+            ?? authState.User.FindFirst("name")?.Value
+            ?? authState.User.FindFirst("preferred_username")?.Value
+            ?? "User";
+        ToolUrl = Configuration["ToolUrls:BoardGameTracker"];
     }
 
     private async Task NavigateToToolWithSSO()
@@ -123,5 +164,30 @@
             Logger.LogInformation("Fallback navigation to: {ToolUrl}", ToolUrl);
             NavigationManager.NavigateTo(ToolUrl, forceLoad: true);
         }
+    }
+
+    private string GetFriendlyClaimName(string claimType)
+    {
+        return claimType switch
+        {
+            "sub" => "Subject ID",
+            "iss" => "Issuer",
+            "aud" => "Audience",
+            "exp" => "Expires",
+            "iat" => "Issued At",
+            "auth_time" => "Auth Time",
+            "cognito:groups" => "Cognito Groups",
+            "cognito:username" => "Username",
+            "email" => "Email",
+            "email_verified" => "Email Verified",
+            "given_name" => "First Name",
+            "family_name" => "Last Name",
+            "name" => "Full Name",
+            "preferred_username" => "Preferred Username",
+            "token_use" => "Token Use",
+            "client_id" => "Client ID",
+            "username" => "Username",
+            _ => claimType
+        };
     }
 }

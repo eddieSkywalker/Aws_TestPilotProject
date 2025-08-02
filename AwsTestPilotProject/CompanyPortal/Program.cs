@@ -51,8 +51,17 @@ builder.Services.AddAuthentication(options =>
 })
 .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
 {
-    options.LoginPath = "/authentication/login";
+    // options.LoginPath = "/authentication/login";
     options.LogoutPath = "/authentication/logout";
+
+    // LocalHost development needs custom domains set in local "Hosts" file 
+    // in order to pass credentials across domains for auto authentication.
+    // For example, add the following line to your Hosts file: 127.0.0.1 App1.localtest.me
+    // If not, you will be requested to login each time you access an app.
+    if (!builder.Environment.IsDevelopment())
+    {
+        options.Cookie.Domain = builder.Configuration["Cookie:Domain"];
+    }
 })
 .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
 {
@@ -107,10 +116,10 @@ builder.Services.AddAuthorization(options =>
     });
 });
 
-builder.WebHost.ConfigureKestrel((context, options) =>
-{
-    options.Configure(context.Configuration.GetSection("Kestrel"));
-});
+// builder.WebHost.ConfigureKestrel((context, options) =>
+// {
+//     options.Configure(context.Configuration.GetSection("Kestrel"));
+// });
 
 
 var app = builder.Build();

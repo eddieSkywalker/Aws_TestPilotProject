@@ -1,5 +1,7 @@
+
 @page "/authentication/login"
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="container">
     <div class="row justify-content-center mt-5">
@@ -20,6 +22,18 @@
 </div>
 
 @code {
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user == null || !user.Identity.IsAuthenticated)
+        {
+            // Not authenticated, auto-redirect to challenge
+            Navigation.NavigateTo("/authentication/challenge", true);
+        }
+        // else: user is authenticated, show the login page (e.g., after logout)
+    }
+
     private async Task LoginUser()
     {
         try

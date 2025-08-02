@@ -20,7 +20,22 @@ namespace CompanyPortal.Controllers
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme);
-            return Redirect("/");
+
+            // Build Cognito logout URL from config
+            var cognitoDomain = HttpContext.RequestServices.GetService<IConfiguration>()?["Cognito:Authority"];
+            var clientId = HttpContext.RequestServices.GetService<IConfiguration>()?["Cognito:ClientId"];
+            // Use the current app's base URL for post-logout redirect
+            var request = HttpContext.Request;
+            var baseUrl = $"{request.Scheme}://{request.Host}";
+            var postLogoutRedirectUri = baseUrl + "/authentication/loggedout";
+
+            // Cognito:Authority may include "/oauth2" or not; ensure only the domain part is used
+            string domain = cognitoDomain?.TrimEnd('/');
+            if (domain != null && domain.EndsWith("/oauth2"))
+                domain = domain.Substring(0, domain.Length - "/oauth2".Length);
+
+            var cognitoLogoutUrl = $"{domain}/logout?client_id={clientId}&logout_uri={System.Net.WebUtility.UrlEncode(postLogoutRedirectUri)}";
+            return Redirect(cognitoLogoutUrl);
         }
     }
 }
