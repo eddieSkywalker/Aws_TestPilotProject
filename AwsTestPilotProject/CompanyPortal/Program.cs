@@ -37,14 +37,14 @@ builder.Services.AddSession(options =>
     options.IdleTimeout = TimeSpan.FromHours(1);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
-});
+})
 
 // Add Token Service for SSO capability (but use built-in auth state provider)
-builder.Services.AddSingleton<CompanyPortal.Services.ITokenService, CompanyPortal.Services.TokenService>();
-builder.Services.AddScoped<CompanyPortal.Services.ISsoService, CompanyPortal.Services.SsoService>();
+// builder.Services.AddSingleton<CompanyPortal.Services.ITokenService, CompanyPortal.Services.TokenService>();
+// builder.Services.AddScoped<CompanyPortal.Services.ISsoService, CompanyPortal.Services.SsoService>();
 
 // ----- Add Authentication for Cognito (Hybrid Approach)
-builder.Services.AddAuthentication(options =>
+.AddAuthentication(options =>
 {
     options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
@@ -52,12 +52,12 @@ builder.Services.AddAuthentication(options =>
 .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
 {
     // options.LoginPath = "/authentication/login";
-    options.LogoutPath = "/authentication/logout";
+    // options.LogoutPath = "/authentication/logout";
 
     // LocalHost development needs custom domains set in local "Hosts" file 
-    // in order to pass credentials across domains for auto authentication.
+    // in order to have the same shared-domain cookie functionality for auto authentication.
     // For example, add the following line to your Hosts file: 127.0.0.1 App1.localtest.me
-    // If not, you will be requested to login each time you access an app.
+    // If not, you will be requested to login each time for first time you access an app.
     if (!builder.Environment.IsDevelopment())
     {
         options.Cookie.Domain = builder.Configuration["Cookie:Domain"];
@@ -71,32 +71,33 @@ builder.Services.AddAuthentication(options =>
     options.ResponseType = OpenIdConnectResponseType.Code;
     options.CallbackPath = "/signin-oidc";
     options.SignedOutCallbackPath = "/signout-callback-oidc";
-    options.RequireHttpsMetadata = true; // Ensure HTTPS is used
+    options.RequireHttpsMetadata = true;
+    // Save the access and ID tokens in the authentication session/cookie.
     options.SaveTokens = true;
     
-    // Add required scopes
     options.Scope.Clear();
     options.Scope.Add("openid");
     options.Scope.Add("email");
     options.Scope.Add("profile");
-    
-    options.Events = new OpenIdConnectEvents
-    {
-        OnTokenValidated = async context =>
-        {
-            // Extract tokens for SSO capability
-            var tokenService = context.HttpContext.RequestServices.GetRequiredService<CompanyPortal.Services.ITokenService>();
-            var sessionId = context.HttpContext.Session.Id;
+
+    // Retrieves cognito access/id token for later use in app, or to send to another service.
+    // options.Events = new OpenIdConnectEvents
+    // {
+    //     OnTokenValidated = async context =>
+    //     {
+    //         // Extract tokens for SSO capability
+    //         var tokenService = context.HttpContext.RequestServices.GetRequiredService<CompanyPortal.Services.ITokenService>();
+    //         var sessionId = context.HttpContext.Session.Id;
             
-            var accessToken = context.TokenEndpointResponse?.AccessToken;
-            var idToken = context.TokenEndpointResponse?.IdToken;
+    //         var accessToken = context.TokenEndpointResponse?.AccessToken;
+    //         var idToken = context.TokenEndpointResponse?.IdToken;
             
-            if (!string.IsNullOrEmpty(accessToken))
-            {
-                await tokenService.StoreTokenAsync(sessionId, accessToken, idToken);
-            }
-        }
-    };
+    //         if (!string.IsNullOrEmpty(accessToken))
+    //         {
+    //             await tokenService.StoreTokenAsync(sessionId, accessToken, idToken);
+    //         }
+    //     }
+    // };
 });
 
 builder.Services.AddAuthorization(options =>
@@ -116,12 +117,6 @@ builder.Services.AddAuthorization(options =>
     });
 });
 
-// builder.WebHost.ConfigureKestrel((context, options) =>
-// {
-//     options.Configure(context.Configuration.GetSection("Kestrel"));
-// });
-
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -139,11 +134,11 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
-app.UseSession(); // Add session support
+app.UseSession(); 
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers(); // This enables MVC controller routes
+app.MapControllers();
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
 
