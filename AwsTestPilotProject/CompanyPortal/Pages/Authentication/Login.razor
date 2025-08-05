@@ -1,12 +1,14 @@
+
 @page "/authentication/login"
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="container">
     <div class="row justify-content-center mt-5">
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header text-center">
-                    <h3>Welcome to BoardGameTracker</h3>
+                    <h3>Welcome to Company Portal</h3>
                 </div>
                 <div class="card-body text-center">
                     <p>Please log in to access the application.</p>
@@ -20,8 +22,28 @@
 </div>
 
 @code {
-    private void LoginUser()
+    protected override async Task OnInitializedAsync()
     {
-        Navigation.NavigateTo($"/authentication/challenge?returnUrl={Uri.EscapeDataString("/")}", true);
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user == null || !user.Identity.IsAuthenticated)
+        {
+            // Not authenticated, auto-redirect to challenge
+            Navigation.NavigateTo("/authentication/challenge", true);
+        }
+        // else: user is authenticated, show the login page (e.g., after logout)
+    }
+
+    private async Task LoginUser()
+    {
+        try
+        {
+            Console.WriteLine("Login button clicked, redirecting to OpenID Connect challenge");
+            Navigation.NavigateTo("/authentication/challenge", true);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in LoginUser: {ex.Message}");
+        }
     }
 }

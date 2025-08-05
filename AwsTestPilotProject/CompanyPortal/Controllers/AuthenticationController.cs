@@ -18,9 +18,25 @@ namespace CompanyPortal.Controllers
         [HttpGet("signout")]
         public async Task<IActionResult> SignOut()
         {
+            // Sign out locally
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme);
-            return Redirect("/");
+
+            // Build Cognito logout URL
+            var config = HttpContext.RequestServices.GetService<IConfiguration>();
+            var cognitoDomain = config?["Cognito:Authority"];
+            var clientId = config?["Cognito:ClientId"];
+            var request = HttpContext.Request;
+            var baseUrl = $"{request.Scheme}://{request.Host}";
+            var postLogoutRedirectUri = baseUrl + "/authentication/loggedout";
+
+            // Remove /oauth2 if present
+            string domain = cognitoDomain?.TrimEnd('/');
+            if (domain != null && domain.EndsWith("/oauth2"))
+                domain = domain.Substring(0, domain.Length - "/oauth2".Length);
+
+            var cognitoLogoutUrl = $"{domain}/logout?client_id={clientId}&logout_uri={System.Net.WebUtility.UrlEncode(postLogoutRedirectUri)}";
+            return Redirect(cognitoLogoutUrl);
         }
     }
 }
