@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.HttpOverrides;
+using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +30,7 @@ builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddMudServices();
 
 // Add session support for token storage
 builder.Services.AddDistributedMemoryCache();
@@ -141,5 +143,6 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
+app.MapStaticAssets();
 
 app.Run();

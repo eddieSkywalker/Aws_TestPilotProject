@@ -1,19 +1,56 @@
 ﻿@inherits LayoutComponentBase
 
-<PageTitle>CompanyPortal</PageTitle>
+<PageTitle>Swamp Dragon Inn</PageTitle>
 
 <div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
-
     <main>
-        <div class="top-row px-4">
-            <a href="https://docs.microsoft.com/aspnet/" target="_blank">About</a>
-        </div>
+        <MudThemeProvider Theme="@standardTheme"/> @* Required *@
+        <MudPopoverProvider /> @* Needed for popovers *@
+        <MudDialogProvider /> @* Needed for dialogs *@
+        <MudSnackbarProvider /> @* Needed for snackbars *@
 
-        <article class="content px-4">
-            @Body
-        </article>
+        <MudLayout>
+            <MudAppBar>
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
+                Swamp Dragon Inn
+            </MudAppBar>
+            <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Always">
+                <MyNavMenu/>
+            </MudDrawer>
+
+            <MudMainContent>
+                <MudContainer MaxWidth="MaxWidth.Medium">
+                    @Body
+                </MudContainer>
+            </MudMainContent>
+        </MudLayout>
+
+        @code {
+            bool _drawerOpen = true;
+
+            void DrawerToggle()
+            {
+                _drawerOpen = !_drawerOpen;
+            }
+            
+            private MudTheme standardTheme = new MudTheme
+            {
+                PaletteLight = new PaletteLight
+                {
+                    Primary = "#4CAF50", // Primary color
+                    Secondary = "#C2B280", // Secondary color
+                    Background = "#F5F5DC", // Background color
+                    Surface = "#FFFFFF", // Surface color
+                    AppbarBackground = "#556B2F", // AppBar background color
+                    AppbarText = "#FFFFFF", // AppBar text color
+                    DrawerBackground = "#556B2F", // Drawer background color
+                    DrawerText = "#FFFFFF", // Drawer text color
+                    Success = "#228B22", // Success color
+                    Warning = "#D2B48C", // Warning color
+                    Error = "#8B0000", // Error color
+                    Info = "#4682B4" // Info color
+                }
+            };
+        }
     </main>
 </div>

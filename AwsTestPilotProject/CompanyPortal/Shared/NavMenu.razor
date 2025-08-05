@@ -1,4 +1,4 @@
-﻿@inject NavigationManager Navigation
+﻿@* @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 
 <AuthorizeView>
@@ -52,4 +52,4 @@
     {
         Navigation.NavigateTo("/authentication/signout", true);
     }
-}
+} *@
